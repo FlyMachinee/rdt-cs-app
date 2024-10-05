@@ -14,30 +14,52 @@ namespace my
     public:
         pretty_wapper(::std::ostream &os, const ::std::string &prefix) : m_os(os), m_prefix(prefix)
         {
-            g_log_mutex.lock();
-            m_os << m_prefix;
+            valid = true;
             m_is_first = true;
+            g_log_mutex.lock();
         }
+
+        pretty_wapper(const pretty_wapper &) = delete;
+        pretty_wapper &operator=(const pretty_wapper &) = delete;
+
+        pretty_wapper(pretty_wapper &&other) : m_os(other.m_os), m_prefix(other.m_prefix), m_is_first(other.m_is_first), valid(other.valid)
+        {
+            other.valid = false;
+        }
+        pretty_wapper &operator=(pretty_wapper &&) = delete;
 
         ~pretty_wapper()
         {
+            if (!valid) {
+                return;
+            }
+            m_os << ::std::endl;
             g_log_mutex.unlock();
         }
 
         template <typename T>
         pretty_wapper &operator<<(const T &t)
         {
+            if (!valid) {
+                return *this;
+            }
+
             if (m_is_first) {
                 m_is_first = false;
-                m_os << t << '\n';
+                m_os << m_prefix << t;
             } else {
-                m_os << ::std::string(m_prefix.length(), ' ') << t << '\n';
+                m_os << '\n'
+                     << ::std::string(m_prefix.length(), ' ') << t;
             }
             return *this;
         }
 
         pretty_wapper &operator<<(std::ostream &(*pf)(std::ostream &))
         {
+            if (!valid) {
+                return *this;
+            }
+
             m_os << pf;
             return *this;
         }
@@ -46,6 +68,7 @@ namespace my
         ::std::ostream &m_os;
         ::std::string m_prefix;
         bool m_is_first;
+        bool valid;
     };
 
     class pretty_wapper_wapper
@@ -56,7 +79,7 @@ namespace my
         template <typename T>
         pretty_wapper operator<<(const T &t)
         {
-            return pretty_wapper(m_os, m_prefix) << t;
+            return ::std::move(pretty_wapper(m_os, m_prefix) << t);
         }
 
     private:
@@ -65,7 +88,7 @@ namespace my
     };
 
     inline pretty_wapper_wapper pretty_log = pretty_wapper_wapper(::std::clog, "[log] ");
-    inline pretty_wapper_wapper pretty_err = pretty_wapper_wapper(::std::cerr, "[err] ");
+    inline pretty_wapper_wapper pretty_err = pretty_wapper_wapper(::std::cerr, "[error] ");
     inline pretty_wapper_wapper pretty_out = pretty_wapper_wapper(::std::cout, "");
 }
 
