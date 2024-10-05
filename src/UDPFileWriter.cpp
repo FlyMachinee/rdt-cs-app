@@ -1,4 +1,5 @@
 
+#include <filesystem>
 #include <format>
 
 #include "../include/UDPFileWriter.h"
@@ -6,6 +7,14 @@
 
 my::UDPFileWriter::UDPFileWriter(::std::string_view filename) : m_filename(filename)
 {
+    if (::std::filesystem::exists(m_filename)) {
+        int dot_pos = m_filename.find_last_of('.');
+        if (dot_pos == ::std::string::npos) {
+            m_filename += "(1)";
+        } else {
+            m_filename.insert(dot_pos, "(1)");
+        }
+    }
     m_ofs.open(m_filename, ::std::ios::binary | ::std::ios::app);
     if (!m_ofs.is_open()) {
         pretty_out << ::std::format("throw from UDPWriteFile::UDPWriteFile(): Failed to open file {0}", m_filename);

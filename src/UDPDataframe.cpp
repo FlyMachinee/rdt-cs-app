@@ -1,4 +1,3 @@
-
 #include <cstring>
 #include <format>
 
@@ -7,13 +6,15 @@
 
 my::UDPDataframe::UDPDataframe()
 {
+    m_data = new char[MAX_SIZE + 1];
     m_data[0] = NONE;
     m_size = 0;
 }
 
 my::UDPDataframe::UDPDataframe(const char *buffer, int recv_size) : m_size(recv_size)
 {
-    if (buffer[0] != ACK && buffer[0] != DATA) {
+    m_data = new char[MAX_SIZE + 1];
+    if (buffer[0] != ACK && buffer[0] != DATA && buffer[0] != CMD) {
         pretty_out << ::std::format("throw from UDPDataframe::UDPDataframe(): Invalid UDPDataframe type, buffer[0] = {0}", (int)buffer[0]);
         throw std::runtime_error("Invalid UDPDataframe type");
     }
@@ -24,9 +25,63 @@ my::UDPDataframe::UDPDataframe(const char *buffer, int recv_size) : m_size(recv_
     ::std::memcpy(m_data, buffer, recv_size);
 }
 
+my::UDPDataframe::UDPDataframe(const UDPDataframe &other) : m_size(other.m_size)
+{
+    m_data = new char[MAX_SIZE + 1];
+    ::std::memcpy(m_data, other.m_data, m_size);
+}
+
+my::UDPDataframe::UDPDataframe(UDPDataframe &&other) noexcept
+    : m_data(other.m_data), m_size(other.m_size)
+{
+    other.m_data = nullptr;
+    other.m_size = 0;
+}
+
+my::UDPDataframe &my::UDPDataframe::operator=(const UDPDataframe &other)
+{
+    if (this != &other) {
+        m_size = other.m_size;
+        ::std::memcpy(m_data, other.m_data, m_size);
+    }
+    return *this;
+}
+
+my::UDPDataframe &my::UDPDataframe::operator=(UDPDataframe &&other) noexcept
+{
+    if (this != &other) {
+        delete[] m_data;
+        m_data = other.m_data;
+        m_size = other.m_size;
+        other.m_data = nullptr;
+        other.m_size = 0;
+    }
+    return *this;
+}
+
+my::UDPDataframe::~UDPDataframe()
+{
+    delete[] m_data;
+}
+
+void my::UDPDataframe::setType(Type type)
+{
+    m_data[0] = (char)type;
+}
+
+bool my::UDPDataframe::isValid() const noexcept
+{
+    return m_data[0] == ACK || m_data[0] == DATA;
+}
+
 bool my::UDPDataframe::isAck() const noexcept
 {
     return m_data[0] == ACK;
+}
+
+bool my::UDPDataframe::isAck(char ack_num) const noexcept
+{
+    return m_data[0] == ACK && m_data[1] == ack_num;
 }
 
 bool my::UDPDataframe::isData() const noexcept
@@ -44,7 +99,7 @@ const char *my::UDPDataframe::data(int &data_size) const
     return m_data + 4;
 }
 
-int my::UDPDataframe::getDataNum() const
+char my::UDPDataframe::getDataNum() const
 {
     if (!isData()) {
         pretty_out << "throw from UDPDataframe::dataNum(): Not a DATA frame";
@@ -53,26 +108,16 @@ int my::UDPDataframe::getDataNum() const
     return *reinterpret_cast<const char *>(m_data + 1);
 }
 
-void my::UDPDataframe::setDataNum(int data_num)
-{
-    transDataNum([data_num](int num) -> int { return data_num; });
-}
-
-void my::UDPDataframe::modDataNum(int modulus)
-{
-    transDataNum([modulus](int num) -> int { return num % modulus; });
-}
-
-void my::UDPDataframe::transDataNum(::std::function<int(int)> f)
+void my::UDPDataframe::setDataNum(char data_num)
 {
     if (!isData()) {
         pretty_out << "throw from UDPDataframe::transDataNum(): Not a DATA frame";
         throw std::runtime_error("Not a DATA frame");
     }
-    m_data[1] = (char)f(m_data[1]);
+    m_data[1] = (char)data_num;
 }
 
-int my::UDPDataframe::getAckNum() const
+char my::UDPDataframe::getAckNum() const
 {
     if (!isAck()) {
         pretty_out << "throw from UDPDataframe::ackNum(): Not an ACK frame";
@@ -81,7 +126,16 @@ int my::UDPDataframe::getAckNum() const
     return *reinterpret_cast<const char *>(m_data + 1);
 }
 
-my::UDPDataframe my::UDPAck(int ack_num)
+void my::UDPDataframe::setAckNum(char ack_num)
+{
+    if (!isAck()) {
+        pretty_out << "throw from UDPDataframe::transAckNum(): Not an ACK frame";
+        throw std::runtime_error("Not an ACK frame");
+    }
+    m_data[1] = (char)ack_num;
+}
+
+my::UDPDataframe my::UDPAck(char ack_num)
 {
     UDPDataframe frame;
     frame.m_data[0] = UDPDataframe::ACK;
@@ -90,7 +144,7 @@ my::UDPDataframe my::UDPAck(int ack_num)
     return frame;
 }
 
-my::UDPDataframe my::UDPData(int data_num, const char *data, int data_size)
+my::UDPDataframe my::UDPData(char data_num, const char *data, int data_size)
 {
     if (data_size > UDPDataframe::MAX_DATA_SIZE) {
         pretty_out << ::std::format("throw from my::UDPData(): Size too large, data_size = {0}, MAX_DATA_SIZE = {1}", data_size, UDPDataframe::MAX_DATA_SIZE);
@@ -111,7 +165,8 @@ my::UDPDataframe my::recvUDPDataframeFrom(const Host &host, Peer &peer_from)
     UDPDataframe frame;
 
     sockaddr_in peer_addr;
-    int recv_size = recvfrom(host.getSocket(), frame.m_data, frame.MAX_SIZE, 0, reinterpret_cast<sockaddr *>(&peer_addr), nullptr);
+    int addr_len = sizeof(peer_addr);
+    int recv_size = recvfrom(host.getSocket(), frame.m_data, frame.MAX_SIZE, 0, reinterpret_cast<sockaddr *>(&peer_addr), &addr_len);
 
     if (recv_size == SOCKET_ERROR) {
         pretty_out << ::std::format("throw from my::recvUDPDataframeFrom(): recvfrom() failed, WSAGetLastError() = {0}", WSAGetLastError());
@@ -125,8 +180,32 @@ my::UDPDataframe my::recvUDPDataframeFrom(const Host &host, Peer &peer_from)
 
 void my::sendUDPDataframeTo(const UDPDataframe &dataframe, const Host &host, const Peer &peer_to)
 {
+    if (!dataframe.isValid()) {
+        pretty_out << "throw from my::sendUDPDataframeTo(): Not a valid UDPDataframe";
+        throw std::runtime_error("Not a valid UDPDataframe");
+    }
+
     if (sendto(host.getSocket(), dataframe.m_data, dataframe.m_size, 0, peer_to.getAddrPtr(), sizeof(sockaddr)) == SOCKET_ERROR) {
         pretty_out << ::std::format("throw from my::sendUDPDataframeTo(): sendto() failed, WSAGetLastError() = {0}", WSAGetLastError());
+        throw std::runtime_error("sendto() failed");
+    }
+}
+
+char my::recvAckFrom(const Host &host, Peer &peer_from)
+{
+    UDPDataframe frame = recvUDPDataframeFrom(host, peer_from);
+    if (!frame.isAck()) {
+        pretty_out << "throw from my::recvAckFrom(): Not an ACK frame";
+        throw std::runtime_error("Not an ACK frame");
+    }
+    return frame.getAckNum();
+}
+
+void my::sendAckTo(char ack_num, const Host &host, const Peer &peer_to)
+{
+    char buffer[3] = {UDPDataframe::ACK, ack_num, 0};
+    if (sendto(host.getSocket(), buffer, 2, 0, peer_to.getAddrPtr(), sizeof(sockaddr)) == SOCKET_ERROR) {
+        pretty_out << ::std::format("throw from my::sendAckTo(): sendto() failed, WSAGetLastError() = {0}", WSAGetLastError());
         throw std::runtime_error("sendto() failed");
     }
 }

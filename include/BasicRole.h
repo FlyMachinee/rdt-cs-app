@@ -1,3 +1,7 @@
+#ifndef _BASIC_ROLE_H_
+#define _BASIC_ROLE_H_
+
+#include <random>
 
 #include "./Entity.hpp"
 
@@ -7,16 +11,46 @@ namespace my
     {
     public:
         BasicRole() = default;
+        BasicRole(SOCKET host_socket) : m_host(host_socket) {}
         virtual ~BasicRole() = 0;
         BasicRole(const BasicRole &) = delete;
         BasicRole &operator=(const BasicRole &) = delete;
 
+        virtual void setPeer(::std::string_view ip, unsigned short port) final
+        {
+            m_peer.m_address.sin_family = AF_INET;
+            m_peer.m_address.sin_port = htons(port);
+            m_peer.m_address.sin_addr.s_addr = inet_addr(ip.data());
+        }
+        virtual void setPeer(sockaddr_in peer_address) final { m_peer.m_address = peer_address; }
+        virtual void setPeer(const Peer &peer) final { m_peer = peer; }
+        virtual void setTimeout(int timeout) final { m_timeout = timeout; }
+
+        virtual float random() final { return m_distribution(m_engine); }
+
     protected:
-        const int m_windowWidth; // W
-
-        const int m_serialDomain; // 2**k
-
         Host m_host;
         Peer m_peer;
+        int m_timeout = 2000;
+
+    private:
+        static std::random_device m_device;
+        static std::mt19937 m_engine;
+        static std::uniform_real_distribution<float> m_distribution;
     };
+
+    inline int getActualForwardBlockNum(int base, char ack_num, int seqNumBound) noexcept
+    {
+        int base_mod_M = base % seqNumBound;
+        return (base + ack_num - base_mod_M) + (base_mod_M <= ack_num ? 0 : seqNumBound);
+    }
+
+    inline int getActualBackwardBlockNum(int base, char ack_num, int seqNumBound) noexcept
+    {
+        int num = (base - 1) % seqNumBound;
+        return (base - 1 - num + ack_num) - (ack_num <= num ? 0 : seqNumBound);
+    }
+
 } // namespace my
+
+#endif // _BASIC_ROLE_H_

@@ -1,3 +1,6 @@
+#ifndef _UDP_FILE_WRITER_H_
+#define _UDP_FILE_WRITER_H_
+
 #include "./UDPDataframe.h"
 
 #include <fstream>
@@ -19,3 +22,5 @@ namespace my
         ::std::ofstream m_ofs;
     };
 } // namespace my
+
+#endif // _UDP_FILE_WRITER_H_
