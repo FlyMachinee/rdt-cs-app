@@ -23,12 +23,18 @@ namespace my
         float getSendAckLoss() const noexcept { return m_send_ack_loss; }
         float getRecvLoss() const noexcept { return m_recv_loss; }
 
+        void enableReceiverLoss() noexcept { m_enable_loss = true; }
+        void disableReceiverLoss() noexcept { m_enable_loss = false; }
+
     protected:
         float m_send_ack_loss = 0.0f;
         float m_recv_loss = 0.0f;
+        bool m_enable_loss = false;
 
         void sendAckToPeer(char ack_num);
         UDPDataframe recvUDPDataframeFromPeer();
+
+    private:
     };
 
     template <int receiverWindowSize, int seqNumBound>
@@ -37,7 +43,7 @@ namespace my
     template <int receiverWindowSize, int seqNumBound>
     void BasicReceiver<receiverWindowSize, seqNumBound>::sendAckToPeer(char ack_num)
     {
-        if (random() < m_send_ack_loss) {
+        if (m_enable_loss && random() < m_send_ack_loss) {
             pretty_log_con << ::std::format("Loss event occurs, ack frame {} was not sent", (int)ack_num);
             return;
         }
@@ -54,7 +60,7 @@ namespace my
                 dataframe = ::std::move(recvUDPDataframeFrom(this->m_host, peer));
             } while (!dataframe.isData() || this->m_peer != peer);
 
-            if (random() >= m_recv_loss) {
+            if (!m_enable_loss || random() >= m_recv_loss) {
                 break;
             }
 

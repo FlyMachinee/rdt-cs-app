@@ -71,7 +71,7 @@ void my::UDPDataframe::setType(Type type)
 
 bool my::UDPDataframe::isValid() const noexcept
 {
-    return m_data[0] == ACK || m_data[0] == DATA;
+    return m_data[0] == ACK || m_data[0] == DATA || m_data[0] == CMD;
 }
 
 bool my::UDPDataframe::isAck() const noexcept
@@ -89,6 +89,11 @@ bool my::UDPDataframe::isData() const noexcept
     return m_data[0] == DATA;
 }
 
+bool my::UDPDataframe::isCmd() const noexcept
+{
+    return m_data[0] == CMD;
+}
+
 const char *my::UDPDataframe::data(int &data_size) const
 {
     if (!isData()) {
@@ -97,6 +102,15 @@ const char *my::UDPDataframe::data(int &data_size) const
     }
     data_size = *reinterpret_cast<const short *>(m_data + 2);
     return m_data + 4;
+}
+
+const char *my::UDPDataframe::cmd() const
+{
+    if (!isCmd()) {
+        pretty_out << "throw from UDPDataframe::cmd(): Not a CMD frame";
+        throw std::runtime_error("Not a CMD frame");
+    }
+    return m_data + 1;
 }
 
 char my::UDPDataframe::getDataNum() const
@@ -160,6 +174,20 @@ my::UDPDataframe my::UDPData(char data_num, const char *data, int data_size)
     return frame;
 }
 
+my::UDPDataframe my::UDPCmd(::std::string_view cmd)
+{
+    if (cmd.size() > UDPDataframe::MAX_DATA_SIZE) {
+        pretty_out << ::std::format("throw from my::UDPCmd(): Size too large, cmd.size() = {0}, MAX_DATA_SIZE = {1}", cmd.size(), UDPDataframe::MAX_DATA_SIZE);
+        throw std::runtime_error("Size too large");
+    }
+
+    UDPDataframe frame;
+    frame.m_data[0] = UDPDataframe::CMD;
+    ::std::memcpy(frame.m_data + 1, cmd.data(), cmd.size());
+    frame.m_size = cmd.size() + 1;
+    return frame;
+}
+
 my::UDPDataframe my::recvUDPDataframeFrom(const Host &host, Peer &peer_from)
 {
     UDPDataframe frame;
@@ -206,6 +234,29 @@ void my::sendAckTo(char ack_num, const Host &host, const Peer &peer_to)
     char buffer[3] = {UDPDataframe::ACK, ack_num, 0};
     if (sendto(host.getSocket(), buffer, 2, 0, peer_to.getAddrPtr(), sizeof(sockaddr)) == SOCKET_ERROR) {
         pretty_out << ::std::format("throw from my::sendAckTo(): sendto() failed, WSAGetLastError() = {0}", WSAGetLastError());
+        throw std::runtime_error("sendto() failed");
+    }
+}
+
+::std::string my::recvCmdFrom(const Host &host, Peer &peer_from)
+{
+    UDPDataframe frame = recvUDPDataframeFrom(host, peer_from);
+    if (!frame.isCmd()) {
+        pretty_out << "throw from my::recvCmdFrom(): Not a CMD frame";
+        throw std::runtime_error("Not a CMD frame");
+    }
+    return ::std::string(frame.cmd());
+}
+
+void my::sendCmdTo(::std::string_view cmd, const Host &host, const Peer &peer_to)
+{
+    char buffer[UDPDataframe::MAX_SIZE + 2];
+    buffer[0] = UDPDataframe::CMD;
+    ::std::memcpy(buffer + 1, cmd.data(), cmd.size());
+    buffer[cmd.size() + 1] = '\0';
+
+    if (sendto(host.getSocket(), buffer, cmd.size() + 2, 0, peer_to.getAddrPtr(), sizeof(sockaddr)) == SOCKET_ERROR) {
+        pretty_out << ::std::format("throw from my::sendCmdTo(): sendto() failed, WSAGetLastError() = {0}", WSAGetLastError());
         throw std::runtime_error("sendto() failed");
     }
 }

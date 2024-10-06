@@ -21,7 +21,21 @@ namespace my
             m_peer.m_address.sin_family = AF_INET;
             m_peer.m_address.sin_port = htons(port);
             m_peer.m_address.sin_addr.s_addr = inet_addr(ip.data());
+            if (m_peer.m_address.sin_addr.s_addr == INADDR_NONE) {
+                pretty_out << "throw from BasicRole::setPeer(): Invalid IP address";
+                throw std::runtime_error("Invalid IP address");
+            }
         }
+        virtual void setPeerIp(::std::string_view ip) final
+        {
+            m_peer.m_address.sin_family = AF_INET;
+            m_peer.m_address.sin_addr.s_addr = inet_addr(ip.data());
+            if (m_peer.m_address.sin_addr.s_addr == INADDR_NONE) {
+                pretty_out << "throw from BasicRole::setPeerIp(): Invalid IP address";
+                throw std::runtime_error("Invalid IP address");
+            }
+        }
+        virtual void setPeerPort(unsigned short port) final { m_peer.m_address.sin_port = htons(port); }
         virtual void setPeer(sockaddr_in peer_address) final { m_peer.m_address = peer_address; }
         virtual void setPeer(const Peer &peer) final { m_peer = peer; }
         virtual void setTimeout(int timeout) final { m_timeout = timeout; }

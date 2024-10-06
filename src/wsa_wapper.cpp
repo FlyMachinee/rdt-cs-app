@@ -11,7 +11,7 @@ bool ::my::wsa_initialized = false;
 bool ::my::init_wsa()
 {
     if (wsa_initialized) {
-        pretty_log << "Winsock already initialized.";
+        pretty_log << "Winsock already initialized";
         return true;
     }
 
@@ -23,21 +23,21 @@ bool ::my::init_wsa()
     if (WSAStartup(WINSOCK_VERSION, &wsaData)) {
         pretty_err
             << ::std::format("WSAStartup failed. Error code: {}", WSAGetLastError())
-            << "Winsock initialization failed.";
+            << "Winsock initialization failed";
         return false;
     }
 
-    pretty_log << "WSAStartup succeeded.";
+    pretty_log << "WSAStartup succeeded";
 
     if (LOBYTE(wsaData.wVersion) != LOBYTE(WINSOCK_VERSION) || HIBYTE(wsaData.wVersion) != HIBYTE(WINSOCK_VERSION)) {
-        pretty_err << "Winsock version not supported."
+        pretty_err << "Winsock version not supported"
                    << ::std::format("Get: {}.{}", HIBYTE(wsaData.wVersion), LOBYTE(wsaData.wVersion))
-                   << "Winsock initialization failed.";
+                   << "Winsock initialization failed";
         WSACleanup();
         return false;
     }
 
-    pretty_log << "Winsock initialized.";
+    pretty_log << "Winsock initialized";
     wsa_initialized = true;
     return true;
 }
@@ -49,7 +49,7 @@ bool ::my::init_wsa()
 bool ::my::cleanup_wsa()
 {
     if (!wsa_initialized) {
-        pretty_log << "Winsock not initialized.";
+        pretty_log << "Winsock not initialized";
         return false;
     }
 
@@ -57,13 +57,13 @@ bool ::my::cleanup_wsa()
     if (WSACleanup()) {
         pretty_err
             << ::std::format("WSACleanup failed. Error code: {}", WSAGetLastError())
-            << "Winsock cleanup failed.";
+            << "Winsock cleanup failed";
         return false;
     }
 
     pretty_log
-        << "WSACleanup succeeded."
-        << "Winsock cleaned up.";
+        << "WSACleanup succeeded"
+        << "Winsock cleaned up";
     wsa_initialized = false;
     return true;
 }

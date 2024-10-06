@@ -53,6 +53,8 @@ namespace my
         virtual ~Host() = default;
 
         SOCKET getSocket() const noexcept { return m_socket; }
+        void setSocket(SOCKET host_socket) noexcept { m_socket = host_socket; }
+
         void updateAddr()
         {
             if (m_socket == INVALID_SOCKET) {

@@ -7,7 +7,7 @@
 {
     m_ifs.open(filename.data(), ::std::ios::binary);
     if (!m_ifs.is_open()) {
-        pretty_out << ::std::format("throw from UDPFile::UDPFile(): Failed to open file {0}", filename);
+        pretty_out << ::std::format("throw from UDPFileReader::UDPFileReader(): Failed to open file \"{0}\"", filename);
         throw std::runtime_error("Failed to open file");
     }
 

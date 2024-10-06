@@ -23,9 +23,13 @@ namespace my
         float getSendLoss() const noexcept { return m_send_loss; }
         float getRecvAckLoss() const noexcept { return m_recv_ack_loss; }
 
+        void enableSenderLoss() noexcept { m_enable_loss = true; }
+        void disableSenderLoss() noexcept { m_enable_loss = false; }
+
     protected:
         float m_send_loss = 0.0f;
         float m_recv_ack_loss = 0.0f;
+        bool m_enable_loss = false;
 
         int recvAckFromPeer();
         void sendUDPDataframeToPeer(UDPFileReader &reader, int index);
@@ -62,7 +66,7 @@ namespace my
         }
 
         if (peer == this->m_peer) {
-            if (this->random() < this->m_recv_ack_loss) {
+            if (m_enable_loss && this->random() < this->m_recv_ack_loss) {
                 pretty_log << ::std::format("Loss event occurs, ack frame {} was not received (already sent by peer)", (int)ack_num);
                 return -1;
             }
@@ -75,7 +79,7 @@ namespace my
     template <int senderWindowSize, int seqNumBound>
     inline void BasicSender<senderWindowSize, seqNumBound>::sendUDPDataframeToPeer(UDPFileReader &reader, int index)
     {
-        if (this->random() < this->m_send_loss) {
+        if (m_enable_loss && this->random() < this->m_send_loss) {
             pretty_log_con << ::std::format("Loss event occurs, data frame {} was not sent", index);
             return;
         }
