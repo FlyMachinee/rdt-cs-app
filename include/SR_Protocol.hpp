@@ -97,8 +97,9 @@ namespace my
             while ((timeout_num = m_spin_timer.whichTimerIsTimeout()) != -1) {
                 int actual_timeout_num = getActualForwardBlockNum(base, timeout_num, M);
 
-                pretty_log << ::std::format("Timeout for ack frame {}({}/{})", timeout_num, actual_timeout_num, block_count);
-                pretty_log << ::std::format("Resend data frame {}({}/{})", timeout_num, actual_timeout_num, block_count);
+                pretty_log
+                    << ::std::format("Timeout for ack frame {}({}/{})", timeout_num, actual_timeout_num, block_count)
+                    << ::std::format("Resend data frame {}({}/{})", timeout_num, actual_timeout_num, block_count);
 
                 this->sendUDPDataframeToPeer(reader, actual_timeout_num);
                 m_spin_timer.timerSetTimeout(timeout_num, this->m_timeout);
@@ -148,27 +149,28 @@ namespace my
                         receive_end = true;
                         target_block_cnt = actual_forward_block_num;
 
-                        pretty_log << "End frame";
+                        pretty_log_con << "End frame";
                     } else {
                         if (m_spin_cache.submit(seq_num, ::std::move(dataframe))) {
                             int cnt = m_spin_cache.spin(writer);
                             base += cnt;
                             if (cnt) {
-                                pretty_log << ::std::format("Submit {} data frame(s) to writer", cnt);
+                                pretty_log_con << ::std::format("Submit {} data frame(s) to writer", cnt);
                             } else {
-                                pretty_log << "Cached";
+                                pretty_log_con << "Cached";
                             }
                         } else {
                             // 当前窗口的重复的数据帧，不进行处理
-                            pretty_log << "Duplicate data frame, ignored";
+                            pretty_log_con << "Duplicate data frame, ignored";
                         }
                     }
 
-                    pretty_log << ::std::format("Send ack frame {}({})", seq_num, actual_forward_block_num);
+                    pretty_log_con << ::std::format("Send ack frame {}({})", seq_num, actual_forward_block_num);
                 } else {
                     // 非当前窗口的重复的数据帧，不进行处理
-                    pretty_log << ::std::format("Receive duplicate data frame {}({})", seq_num, actual_backward_block_num);
-                    pretty_log << ::std::format("Send ack frame {}({})", seq_num, actual_backward_block_num);
+                    pretty_log
+                        << ::std::format("Receive duplicate data frame {}({})", seq_num, actual_backward_block_num)
+                        << ::std::format("Send ack frame {}({})", seq_num, actual_backward_block_num);
                 }
 
                 // 发送/重发确认帧

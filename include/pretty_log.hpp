@@ -88,7 +88,9 @@ namespace my
     };
 
     inline pretty_wapper_wapper pretty_log = pretty_wapper_wapper(::std::clog, "[log] ");
+    inline pretty_wapper_wapper pretty_log_con = pretty_wapper_wapper(::std::cout, "      ");
     inline pretty_wapper_wapper pretty_err = pretty_wapper_wapper(::std::cerr, "[error] ");
+    inline pretty_wapper_wapper pretty_err_con = pretty_wapper_wapper(::std::cout, "        ");
     inline pretty_wapper_wapper pretty_out = pretty_wapper_wapper(::std::cout, "");
 }
 

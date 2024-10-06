@@ -38,7 +38,7 @@ namespace my
     void BasicReceiver<receiverWindowSize, seqNumBound>::sendAckToPeer(char ack_num)
     {
         if (random() < m_send_ack_loss) {
-            pretty_log << ::std::format("Loss event occurs, ack frame {} was not sent", (int)ack_num);
+            pretty_log_con << ::std::format("Loss event occurs, ack frame {} was not sent", (int)ack_num);
             return;
         }
         sendAckTo(ack_num, this->m_host, this->m_peer);

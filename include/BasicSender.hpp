@@ -76,7 +76,7 @@ namespace my
     inline void BasicSender<senderWindowSize, seqNumBound>::sendUDPDataframeToPeer(UDPFileReader &reader, int index)
     {
         if (this->random() < this->m_send_loss) {
-            pretty_log << ::std::format("Loss event occurs, data frame {} was not sent", index);
+            pretty_log_con << ::std::format("Loss event occurs, data frame {} was not sent", index);
             return;
         }
         UDPDataframe dataframe = reader.getDataframe(index);

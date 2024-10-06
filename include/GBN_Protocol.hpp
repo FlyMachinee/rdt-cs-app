@@ -111,7 +111,7 @@ namespace my
 
                 // 重传窗口内的所有数据帧
                 for (int i = base; i < next_num; i++) {
-                    pretty_log << ::std::format("Resend data frame {}({}/{})", i % M, i, block_count);
+                    pretty_log_con << ::std::format("Resend data frame {}({}/{})", i % M, i, block_count);
 
                     this->sendUDPDataframeToPeer(reader, i);
                 }
@@ -161,7 +161,7 @@ namespace my
             }
 
             // 发送确认帧
-            pretty_log << ::std::format("Send ack frame {}({})", (base + M) % M, base);
+            pretty_log_con << ::std::format("Send ack frame {}({})", (base + M) % M, base);
             this->sendAckToPeer(base % M);
         }
     }
