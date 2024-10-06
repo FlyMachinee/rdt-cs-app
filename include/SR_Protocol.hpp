@@ -148,8 +148,10 @@ namespace my
                         // 空的结束帧，置标记位，等待接收结束
                         receive_end = true;
                         target_block_cnt = actual_forward_block_num;
-
                         pretty_log_con << "End frame";
+
+                        // 不考虑最后一个ack丢失的情况
+                        this->disableReceiverLoss();
                     } else {
                         if (m_spin_cache.submit(seq_num, ::std::move(dataframe))) {
                             int cnt = m_spin_cache.spin(writer);

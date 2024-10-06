@@ -49,8 +49,8 @@ namespace my
     template <class Transceiver>
     RDT_Server<Transceiver>::RDT_Server()
     {
-        if (!::my::wsa_initialized) {
-            ::my::init_wsa();
+        if (!wsa_initialized) {
+            init_wsa();
         }
 
         SOCKET host_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -77,6 +77,10 @@ namespace my
         DWORD dwBytesReturned = 0;
         WSAIoctl(host_socket, _WSAIOW(IOC_VENDOR, 12), &bNewBehavior, sizeof bNewBehavior, nullptr, 0, &dwBytesReturned, nullptr, nullptr);
 
+        if (!::std::filesystem::exists(m_repo)) {
+            ::std::filesystem::create_directory(m_repo);
+        }
+
         pretty_log << "Server initialized" << ::std::format("Running on {}", this->m_host.toString());
     }
 
@@ -85,13 +89,13 @@ namespace my
     {
         if (closesocket(this->m_host.getSocket()) == SOCKET_ERROR) {
             ::my::pretty_err << ::std::format("Close socket failed. Error code: {}", WSAGetLastError());
+            return;
         }
-
-        if (::my::wsa_initialized) {
-            ::my::cleanup_wsa();
-        }
-
         pretty_log << "Server closed";
+
+        if (wsa_initialized) {
+            cleanup_wsa();
+        }
     }
 
     template <class Transceiver>
@@ -182,6 +186,15 @@ namespace my
     template <class Transceiver>
     inline void RDT_Server<Transceiver>::handle_upload(::std::string_view filename)
     {
+        // 不考虑文件与文件夹同名的情况
+        ::std::filesystem::path file_path = m_repo / ::std::string(filename);
+        if (::std::filesystem::exists(file_path)) {
+            pretty_log << ::std::format("File \"{}\" already exists, overwrite", file_path.string());
+            ::std::filesystem::remove(file_path);
+        }
+        enableLoss();
+        this->recvfromPeer(file_path.string());
+        disableLoss();
     }
 
 } // namespace my

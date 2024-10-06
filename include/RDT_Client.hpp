@@ -36,8 +36,13 @@ namespace my
         int handle_user_input();
         int exec_cmd(::std::string_view cmd);
         void help();
+        bool handle_ls(::std::vector<::std::string> &file_list, ::std::vector<::std::string> &file_size_list);
+        bool handle_lss(::std::vector<::std::string> &file_list, ::std::vector<::std::string> &file_size_list);
         void handle_upload();
         void handle_download();
+
+        int get_num_input();
+        void show_file_list(const ::std::vector<::std::string> &file_list, const ::std::vector<::std::string> &file_size_list);
     };
 
     template <int seqNumBound>
@@ -52,8 +57,8 @@ namespace my
     template <class Transceiver>
     RDT_Client<Transceiver>::RDT_Client()
     {
-        if (!::my::wsa_initialized) {
-            ::my::init_wsa();
+        if (!wsa_initialized) {
+            init_wsa();
         }
 
         SOCKET host_socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -82,6 +87,10 @@ namespace my
         DWORD dwBytesReturned = 0;
         WSAIoctl(host_socket, _WSAIOW(IOC_VENDOR, 12), &bNewBehavior, sizeof bNewBehavior, nullptr, 0, &dwBytesReturned, nullptr, nullptr);
 
+        if (!::std::filesystem::exists(m_repo)) {
+            ::std::filesystem::create_directory(m_repo);
+        }
+
         pretty_log << "Client initialized" << ::std::format("Running on {}", this->m_host.toString());
     }
 
@@ -90,12 +99,13 @@ namespace my
     {
         if (closesocket(this->m_host.getSocket()) == SOCKET_ERROR) {
             ::my::pretty_err << ::std::format("Close socket failed. Error code: {}", WSAGetLastError());
+            return;
         }
-        if (::my::wsa_initialized) {
-            ::my::cleanup_wsa();
-        }
-
         pretty_log << "Client closed";
+
+        if (wsa_initialized) {
+            cleanup_wsa();
+        }
     }
 
     template <class Transceiver>
@@ -149,9 +159,10 @@ namespace my
         ::std::string token;
         iss >> token;
 
-        if (token == "upload" || token == "download") {
-            bool is_upload = token == "upload";
+        // 这里忽略了路径中有空格的情况
+        // 处理起来比较麻烦，暂时不考虑 (正确方式为在输入路径时加引号)
 
+        if (token == "upload" || token == "download" || token == "lss") {
             while (iss >> token) {
                 if (token == "-ip") {
                     iss >> token;
@@ -170,10 +181,14 @@ namespace my
                 }
             }
 
-            if (is_upload) {
+            if (token == "upload") {
                 this->handle_upload();
-            } else {
+            } else if (token == "download") {
                 this->handle_download();
+            } else if (token == "lss") {
+                ::std::vector<::std::string> file_list;
+                ::std::vector<::std::string> file_size_list;
+                this->handle_lss(file_list, file_size_list);
             }
         } else if (token == "repo") {
             bool is_set = false;
@@ -191,13 +206,76 @@ namespace my
                     return 0;
                 }
             }
+
             if (!is_set) {
                 pretty_log << ::std::format("Client repository: \"{}\"", m_repo.string());
             } else {
                 pretty_log << ::std::format("Client repository set to: \"{}\"", m_repo.string());
             }
+        } else if (token == "ls") {
+            ::std::vector<::std::string> file_list;
+            ::std::vector<::std::string> file_size_list;
+            handle_ls(file_list, file_size_list);
         } else if (token == "help") {
             help();
+        } else if (token == "loss") {
+            bool is_set = false;
+
+            if (iss >> token) {
+                if (token == "-set") {
+                    while (iss >> token) {
+                        float rate;
+                        auto get_rate = [&iss, &rate]() {
+                            iss >> rate;
+                            if (rate < 0 || rate > 1) {
+                                pretty_err << "Invalid loss rate, should be in [0, 1]";
+                                return false;
+                            }
+                            return true;
+                        };
+
+                        auto set_loss_rate = [&](auto set_loss_func) {
+                            if (!get_rate()) {
+                                return false;
+                            }
+                            (this->*set_loss_func)(rate);
+                            is_set = true;
+                            return true;
+                        };
+
+                        if (token == "sa") {
+                            if (!set_loss_rate(&RDT_Client::setSendAckLoss)) {
+                                return 0;
+                            }
+                        } else if (token == "sd") {
+                            if (!set_loss_rate(&RDT_Client::setSendLoss)) {
+                                return 0;
+                            }
+                        } else if (token == "ra") {
+                            if (!set_loss_rate(&RDT_Client::setRecvAckLoss)) {
+                                return 0;
+                            }
+                        } else if (token == "rd") {
+                            if (!set_loss_rate(&RDT_Client::setRecvLoss)) {
+                                return 0;
+                            }
+                        } else {
+                            pretty_err << ::std::format("Unknown option \"{}\". Use \"help\" to get help", token);
+                            return 0;
+                        }
+                    }
+                } else {
+                    pretty_err << ::std::format("Unknown option \"{}\". Use \"help\" to get help", token);
+                    return 0;
+                }
+            }
+
+            pretty_log << (is_set ? "Loss rate set to:" : "Loss rate:")
+                       << ::std::format("(sa) client_send_ack_loss    {:.2f}", this->getSendAckLoss())
+                       << ::std::format("(sd) client_send_data_loss   {:.2f}", this->getSendLoss())
+                       << ::std::format("(ra) client_recv_ack_loss    {:.2f}", this->getRecvAckLoss())
+                       << ::std::format("(rd) client_recv_data_loss   {:.2f}", this->getRecvLoss());
+
         } else if (token == "exit" || token == "quit") {
             return -1;
         } else {
@@ -211,43 +289,56 @@ namespace my
     void RDT_Client<Transceiver>::help()
     {
         pretty_log
-            << "Commands:"
-            << "  upload [-ip <ip>] [-port <port>] - Upload file to server"
-            << "    Default ip:port is 127.0.0.1:12345"
+            << "Commands:\n"
+            << "  upload [-ip <ip>] [-port <port>] - Upload file to server, create or overwrite"
+            << "    Default ip:port is 127.0.0.1:12345\n"
             << "  download [-ip <ip>] [-port <port>] - Download file from server"
-            << "    Default ip:port is 127.0.0.1:12345"
-            << "  repo [-set <dir_path>] - Show or set client repository"
-            << "  help - Show help message"
+            << "    Default ip:port is 127.0.0.1:12345\n"
+            << "  lss [-ip <ip>] [-port <port>] - List files in server repository"
+            << "    Default ip:port is 127.0.0.1:12345\n"
+            << "  ls - List files in client repository\n"
+            << "  repo [-set <dir_path>] - Show or set client repository\n"
+            << "  loss [-set < <loss_name> <loss_rate> ...>] - Show or set loss rate"
+            << "    <loss_name>: sa - send_ack, sd - send_data, ra - recv_ack, rd - recv_data"
+            << "    <loss_rate>: float, in [0, 1]"
+            << "    e.g. loss -set sa 0.1 rd 0.2"
+            << "         will set client_send_ack_loss to 0.1, client_recv_data_loss to 0.2\n"
+            << "  help - Show help message\n"
             << "  exit/quit - Exit client";
     }
 
     template <class Transceiver>
-    void RDT_Client<Transceiver>::handle_upload()
+    inline bool RDT_Client<Transceiver>::handle_ls(::std::vector<::std::string> &file_list, ::std::vector<::std::string> &file_size_list)
     {
+        for (const auto &entry : ::std::filesystem::directory_iterator(m_repo)) {
+            if (entry.is_regular_file()) {
+                file_list.push_back(entry.path().filename().string());
+                file_size_list.push_back(::std::to_string(entry.file_size()));
+            }
+        }
+
+        if (file_list.empty()) {
+            pretty_log << "No file in client repository";
+            return false;
+        }
+
+        show_file_list(file_list, file_size_list);
+        return true;
     }
 
     template <class Transceiver>
-    void RDT_Client<Transceiver>::handle_download()
+    inline bool RDT_Client<Transceiver>::handle_lss(::std::vector<::std::string> &file_list, ::std::vector<::std::string> &file_size_list)
     {
-        // 先从服务器获取文件信息列表
-        // 然后选择要下载的文件
-        // 选择文件后，发送下载请求
-
-        // 获取文件列表
-        pretty_log << ::std::format("Fetching file list from server {}...", this->m_peer.toString());
         this->sendCmdToPeer("ls");
 
         int cnt = 0;
         while (this->recvAckFromPeer() == -1) {
             if (++cnt > 20) {
                 pretty_err << "Failed to fetch file list from server, timeout";
-                return;
+                return false;
             }
         }
 
-        // 读取文件列表
-        ::std::vector<::std::string> file_list;
-        ::std::vector<::std::string> file_size_list;
         int max_file_name_length = 8;
         while (true) {
             UDPDataframe dataframe = this->recvUDPDataframeFromPeer();
@@ -266,36 +357,86 @@ namespace my
             file_size_list.push_back(file_size);
         }
 
-        // 显示文件列表
         if (file_list.empty()) {
             pretty_log << "No file in server";
+            return false;
+        }
+
+        show_file_list(file_list, file_size_list);
+        return true;
+    }
+
+    template <class Transceiver>
+    void RDT_Client<Transceiver>::handle_upload()
+    {
+        // 从本地获取文件列表
+        // 选择要上传的文件
+        // 选择文件后，发送上传请求
+
+        // 获取文件列表
+        pretty_log << "Fetching local file list...";
+        ::std::vector<::std::string> file_list;
+        ::std::vector<::std::string> file_size_list;
+        if (!handle_ls(file_list, file_size_list)) {
             return;
         }
 
-        ::std::cout << "No  Filename" << ::std::string(max_file_name_length - 8, ' ') << "  Size" << ::std::endl;
-        for (int i = 0; i < file_list.size(); ++i) {
-            ::std::cout << ::std::vformat(::std::format("{{:<4}}{{:<{}}}", max_file_name_length), ::std::make_format_args(i, file_list[i])) << "  " << file_size_list[i] << ::std::endl;
+        // 选择文件
+        pretty_log << "Choose a file to upload (input the number):";
+        int file_num;
+        while (true) {
+            file_num = get_num_input();
+            if (file_num >= 0 && file_num < file_list.size()) {
+                break;
+            } else {
+                pretty_err << "File number out of range, please input again";
+            }
+        }
+        pretty_log << ::std::format("The file will be uploaded to server {}, create or overwrite", this->m_peer.toString());
+
+        // 发送上传请求
+        this->sendCmdToPeer(::std::format("upload {}", file_list[file_num]));
+        int cnt = 0;
+        while (this->recvAckFromPeer() == -1) {
+            if (++cnt > 20) {
+                pretty_err << "Failed to upload file, timeout";
+                return;
+            }
+        }
+
+        // 上传文件
+        enableLoss();
+        this->sendtoPeer(m_repo.string() + ::std::string(file_list[file_num]));
+        disableLoss();
+
+        pretty_log << ::std::format("Upload file \"{}\" successfully to {}", file_list[file_num], this->m_peer.toString());
+    }
+
+    template <class Transceiver>
+    void RDT_Client<Transceiver>::handle_download()
+    {
+        // 先从服务器获取文件信息列表
+        // 然后选择要下载的文件
+        // 选择文件后，发送下载请求
+
+        // 获取文件列表
+        pretty_log << ::std::format("Fetching file list from server {}...", this->m_peer.toString());
+
+        ::std::vector<::std::string> file_list;
+        ::std::vector<::std::string> file_size_list;
+        if (!handle_lss(file_list, file_size_list)) {
+            return;
         }
 
         // 选择文件
         pretty_log << "Choose a file to download (input the number):";
         int file_num;
-
         while (true) {
-            ::std::cout << ">>> ";
-            ::std::string file_num_str;
-            ::std::getline(::std::cin, file_num_str);
-            if (::std::all_of(file_num_str.begin(), file_num_str.end(), ::isdigit)) {
-                file_num = ::std::stoi(file_num_str);
-                if (file_num >= 0 && file_num < file_list.size()) {
-                    break;
-                } else {
-                    pretty_err << "Number out of range, please input again";
-                    continue;
-                }
+            file_num = get_num_input();
+            if (file_num >= 0 && file_num < file_list.size()) {
+                break;
             } else {
-                pretty_err << "Invalid input, please input a number";
-                continue;
+                pretty_err << "File number out of range, please input again";
             }
         }
 
@@ -315,7 +456,7 @@ namespace my
 
         // 发送下载请求
         this->sendCmdToPeer(::std::format("download {}", file_fullname));
-        cnt = 0;
+        int cnt = 0;
         while (this->recvAckFromPeer() == -1) {
             if (++cnt > 20) {
                 pretty_err << "Failed to download file, timeout";
@@ -331,6 +472,38 @@ namespace my
         pretty_log
             << ::std::format("Download file \"{}\" successfully from {}", file_fullname, this->m_peer.toString())
             << ::std::format("Saved to: \"{}\"", file_path.string());
+    }
+
+    template <class Transceiver>
+    inline int RDT_Client<Transceiver>::get_num_input()
+    {
+        int num;
+        while (true) {
+            ::std::cout << ">>> ";
+            ::std::string num_str;
+            ::std::getline(::std::cin, num_str);
+            if (::std::all_of(num_str.begin(), num_str.end(), ::isdigit)) {
+                num = ::std::stoi(num_str);
+                break;
+            } else {
+                pretty_err << "Invalid input, please input a number";
+            }
+        }
+        return num;
+    }
+
+    template <class Transceiver>
+    inline void RDT_Client<Transceiver>::show_file_list(const ::std::vector<::std::string> &file_list, const ::std::vector<::std::string> &file_size_list)
+    {
+        int max_file_name_length = 8;
+        for (const auto &file_name : file_list) {
+            max_file_name_length = ::std::max(max_file_name_length, (int)file_name.size());
+        }
+
+        ::std::cout << "No  Filename" << ::std::string(max_file_name_length - 8, ' ') << "  Size" << ::std::endl;
+        for (int i = 0; i < file_list.size(); ++i) {
+            ::std::cout << ::std::vformat(::std::format("{{:<4}}{{:<{}}}", max_file_name_length), ::std::make_format_args(i, file_list[i])) << "  " << file_size_list[i] << ::std::endl;
+        }
     }
 
 } // namespace my

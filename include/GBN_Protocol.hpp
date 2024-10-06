@@ -151,6 +151,9 @@ namespace my
                     // 空的结束帧
                     pretty_log << "End frame";
                     receive_end = true;
+
+                    // 不考虑最后一个ack丢失的情况
+                    this->disableReceiverLoss();
                 } else {
                     writer.append(dataframe);
                 }
