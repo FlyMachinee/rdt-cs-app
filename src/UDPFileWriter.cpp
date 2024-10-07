@@ -3,11 +3,11 @@
 #include "../include/UDPFileWriter.h"
 #include "../include/pretty_log.hpp"
 
-my::UDPFileWriter::UDPFileWriter(::std::string_view filename) : m_filename(filename)
+my::UDPFileWriter::UDPFileWriter(::std::string_view filename)
 {
-    m_ofs.open(m_filename, ::std::ios::binary | ::std::ios::app);
+    m_ofs.open(filename.data(), ::std::ios::binary | ::std::ios::app);
     if (!m_ofs.is_open()) {
-        pretty_out << ::std::format("throw from UDPFileWriter::UDPFileWriter(): Failed to open file \"{0}\"", m_filename);
+        pretty_out << ::std::format("throw from UDPFileWriter::UDPFileWriter(): Failed to open file \"{0}\"", filename);
         throw std::runtime_error("Failed to open file");
     }
 }

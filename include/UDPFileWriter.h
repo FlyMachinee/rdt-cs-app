@@ -18,7 +18,6 @@ namespace my
         void close();
 
     private:
-        ::std::string m_filename;
         ::std::ofstream m_ofs;
     };
 } // namespace my
