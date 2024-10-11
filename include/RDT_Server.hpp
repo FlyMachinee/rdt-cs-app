@@ -105,7 +105,7 @@ namespace my
             this->disableLoss();
             try {
                 ::std::string cmd = recvCmdFromPeer();
-                pretty_out << ::std::format("[{}] {}{}", this->m_peer.toString(), m_prompt, cmd);
+                pretty_out << ::std::format("\033[0m\033[1;32m[{}]\033[0m {}{}", this->m_peer.toString(), m_prompt, cmd);
                 exec_cmd(cmd);
             } catch (const ::std::runtime_error &e) {
                 pretty_out << ::std::format("catch by RDT_Server::run():") << e.what();

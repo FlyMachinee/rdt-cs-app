@@ -176,7 +176,7 @@ namespace my
                     iss >> token;
                     this->setPeerPort(::std::stoi(token));
                 } else {
-                    pretty_err << ::std::format("Unknown option \"{}\". Use \"help\" to get help", token);
+                    pretty_err << ::std::format("Unknown token \"{}\". Use \"help\" to get help", token);
                     return 0;
                 }
             }
@@ -202,7 +202,7 @@ namespace my
                     is_set = true;
                     m_repo = token;
                 } else {
-                    pretty_err << ::std::format("Unknown option \"{}\". Use \"help\" to get help", token);
+                    pretty_err << ::std::format("Unknown token \"{}\". Use \"help\" to get help", token);
                     return 0;
                 }
             }
@@ -269,12 +269,12 @@ namespace my
                             this->setRecvLoss(rate);
                             is_set = true;
                         } else {
-                            pretty_err << ::std::format("Unknown option \"{}\". Use \"help\" to get help", token);
+                            pretty_err << ::std::format("Unknown token \"{}\". Use \"help\" to get help", token);
                             return 0;
                         }
                     }
                 } else {
-                    pretty_err << ::std::format("Unknown option \"{}\". Use \"help\" to get help", token);
+                    pretty_err << ::std::format("Unknown token \"{}\". Use \"help\" to get help", token);
                     return 0;
                 }
             }
@@ -298,22 +298,21 @@ namespace my
     void RDT_Client<Transceiver>::help()
     {
         pretty_log
-            << "Commands:\n"
-            << "  upload [-ip <ip>] [-port <port>] - Upload file to server, create or overwrite"
+            << "\033[0m\033[1;32mupload [-ip <ip>] [-port <port>]\033[0m - Upload file to server, create or overwrite"
             << "    Default ip:port is 127.0.0.1:12345\n"
-            << "  download [-ip <ip>] [-port <port>] - Download file from server"
+            << "\033[0m\033[1;32mdownload [-ip <ip>] [-port <port>]\033[0m - Download file from server"
             << "    Default ip:port is 127.0.0.1:12345\n"
-            << "  lss [-ip <ip>] [-port <port>] - List files in server repository"
+            << "\033[0m\033[1;32mlss [-ip <ip>] [-port <port>]\033[0m - List files in server repository"
             << "    Default ip:port is 127.0.0.1:12345\n"
-            << "  ls - List files in client repository\n"
-            << "  repo [-set <dir_path>] - Show or set client repository\n"
-            << "  loss [-set < <loss_name> <loss_rate> ...>] - Show or set loss rate"
-            << "    <loss_name>: sa - send_ack, sd - send_data, ra - recv_ack, rd - recv_data, all - all"
-            << "    <loss_rate>: float, in [0, 1]"
+            << "\033[0m\033[1;32mls\033[0m - List files in client repository\n"
+            << "\033[0m\033[1;32mrepo [-set <dir_path>]\033[0m - Show or set client repository\n"
+            << "\033[0m\033[1;32mloss [-set < <loss_name> <loss_rate> ...>]\033[0m - Show or set loss rate"
+            << "    <loss_name>: sa: send_ack, sd: send_data, ra: recv_ack, rd: recv_data, all: all"
+            << "    <loss_rate>: float, in [0, 1)"
             << "    e.g. loss -set sa 0.1 rd 0.2"
             << "         will set client_send_ack_loss to 0.1, client_recv_data_loss to 0.2\n"
-            << "  help - Show help message\n"
-            << "  exit/quit - Exit client";
+            << "\033[0m\033[1;32mhelp\033[0m - Show help message\n"
+            << "\033[0m\033[1;32mexit/quit\033[0m - Exit client";
     }
 
     template <class Transceiver>
@@ -496,9 +495,10 @@ namespace my
             }
             if (frame.isData()) {
                 this->sendAckToPeer(frame.getDataNum());
-                pretty_log << ::std::format("Receive data frame {}", frame.getDataNum())
-                           << "Duplicate frame, discard"
-                           << ::std::format("Send ack frame {}", frame.getDataNum());
+                pretty_log
+                    << ::std::format("Receive data frame {}", frame.getDataNum())
+                    << "Duplicate frame, discard"
+                    << ::std::format("Send ack frame {}", frame.getDataNum());
             }
         }
     }
@@ -531,7 +531,10 @@ namespace my
 
         ::std::cout << "No  Filename" << ::std::string(max_file_name_length - 8, ' ') << "  Size" << ::std::endl;
         for (int i = 0; i < file_list.size(); ++i) {
-            ::std::cout << ::std::vformat(::std::format("{{:<4}}{{:<{}}}", max_file_name_length), ::std::make_format_args(i, file_list[i])) << "  " << file_size_list[i] << ::std::endl;
+            pretty_out
+                << ::std::vformat(::std::format("{{:<4}}{{:<{}}}", max_file_name_length), ::std::make_format_args(i, file_list[i]))
+                << "  "
+                << file_size_list[i];
         }
     }
 
