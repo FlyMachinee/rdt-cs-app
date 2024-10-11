@@ -70,7 +70,7 @@ namespace my
             // 发送数据帧
             while (next_num < base + N && next_num <= block_count) {
                 pretty_log << ::std::format("Send data frame {}({}/{})", next_num % M, next_num, block_count);
-                this->sendUDPDataframeToPeer(reader, next_num);
+                this->sendUDPDataToPeer(reader, next_num);
 
                 // 如果是窗口第一个数据帧，启动定时器
                 if (base == next_num) {
@@ -113,7 +113,7 @@ namespace my
                 for (int i = base; i < next_num; i++) {
                     pretty_log_con << ::std::format("Resend data frame {}({}/{})", i % M, i, block_count);
 
-                    this->sendUDPDataframeToPeer(reader, i);
+                    this->sendUDPDataToPeer(reader, i);
                 }
                 m_timer.setTimeout(this->m_timeout);
             }
@@ -135,7 +135,7 @@ namespace my
         bool receive_end = false;
         // 阻塞接收数据帧
         while (!receive_end) {
-            UDPDataframe dataframe = this->recvUDPDataframeFromPeer();
+            UDPDataframe dataframe = this->recvUDPDataFromPeer();
 
             int data_num = dataframe.getDataNum();
             int length;
@@ -151,9 +151,6 @@ namespace my
                     // 空的结束帧
                     pretty_log << "End frame";
                     receive_end = true;
-
-                    // 不考虑最后一个ack丢失的情况
-                    this->disableReceiverLoss();
                 } else {
                     writer.append(dataframe);
                 }

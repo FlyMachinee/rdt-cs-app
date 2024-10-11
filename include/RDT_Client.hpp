@@ -13,7 +13,7 @@
 
 namespace my
 {
-    // 要求：Transceiver有sendUDPDataframeToPeer、recvUDPDataframeFromPeer、sendAckToPeer、recvAckFromPeer
+    // 要求：Transceiver有sendUDPDataframeToPeer、recvUDPDataFromPeer、sendAckToPeer、recvAckFromPeer
     // 并且多继承自BasicRole
     template <class Transceiver>
     class RDT_Client : protected Transceiver
@@ -259,6 +259,15 @@ namespace my
                             if (!set_loss_rate(&RDT_Client::setRecvLoss)) {
                                 return 0;
                             }
+                        } else if (token == "all") {
+                            if (!get_rate()) {
+                                return 0;
+                            }
+                            this->setSendAckLoss(rate);
+                            this->setSendLoss(rate);
+                            this->setRecvAckLoss(rate);
+                            this->setRecvLoss(rate);
+                            is_set = true;
                         } else {
                             pretty_err << ::std::format("Unknown option \"{}\". Use \"help\" to get help", token);
                             return 0;
@@ -299,7 +308,7 @@ namespace my
             << "  ls - List files in client repository\n"
             << "  repo [-set <dir_path>] - Show or set client repository\n"
             << "  loss [-set < <loss_name> <loss_rate> ...>] - Show or set loss rate"
-            << "    <loss_name>: sa - send_ack, sd - send_data, ra - recv_ack, rd - recv_data"
+            << "    <loss_name>: sa - send_ack, sd - send_data, ra - recv_ack, rd - recv_data, all - all"
             << "    <loss_rate>: float, in [0, 1]"
             << "    e.g. loss -set sa 0.1 rd 0.2"
             << "         will set client_send_ack_loss to 0.1, client_recv_data_loss to 0.2\n"
@@ -341,7 +350,7 @@ namespace my
 
         int max_file_name_length = 8;
         while (true) {
-            UDPDataframe dataframe = this->recvUDPDataframeFromPeer();
+            UDPDataframe dataframe = this->recvUDPDataFromPeer();
             int length;
             const char *data = dataframe.data(length);
             if (length == 0) {
@@ -408,6 +417,7 @@ namespace my
         enableLoss();
         this->sendtoPeer(m_repo.string() + ::std::string(file_list[file_num]));
         disableLoss();
+        this->sendAckToPeer(255);
 
         pretty_log << ::std::format("Upload file \"{}\" successfully to {}", file_list[file_num], this->m_peer.toString());
     }
@@ -469,9 +479,28 @@ namespace my
         this->recvfromPeer(file_path.string());
         disableLoss();
 
-        pretty_log
-            << ::std::format("Download file \"{}\" successfully from {}", file_fullname, this->m_peer.toString())
-            << ::std::format("Saved to: \"{}\"", file_path.string());
+        // 等待服务器发送结束帧
+        // 避免客户端完成下载后，但客户端发送的ack丢失，导致服务器一直重发数据帧
+        // 因为recvfromPeer在接收数据完毕后就会返回
+        Peer peer;
+        while (true) {
+            UDPDataframe frame = recvUDPDataframeFrom(this->m_host, peer);
+            if (peer != this->m_peer) {
+                continue;
+            }
+            if (frame.isAck() && frame.getAckNum() == 255) {
+                pretty_log
+                    << ::std::format("Download file \"{}\" successfully from {}", file_fullname, this->m_peer.toString())
+                    << ::std::format("Saved to: \"{}\"", file_path.string());
+                return;
+            }
+            if (frame.isData()) {
+                this->sendAckToPeer(frame.getDataNum());
+                pretty_log << ::std::format("Receive data frame {}", frame.getDataNum())
+                           << "Duplicate frame, discard"
+                           << ::std::format("Send ack frame {}", frame.getDataNum());
+            }
+        }
     }
 
     template <class Transceiver>

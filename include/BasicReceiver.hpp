@@ -31,8 +31,8 @@ namespace my
         float m_recv_loss = 0.0f;
         bool m_enable_loss = false;
 
-        void sendAckToPeer(char ack_num);
-        UDPDataframe recvUDPDataframeFromPeer();
+        void sendAckToPeer(unsigned char ack_num);
+        UDPDataframe recvUDPDataFromPeer();
 
     private:
     };
@@ -41,7 +41,7 @@ namespace my
     BasicReceiver<receiverWindowSize, seqNumBound>::~BasicReceiver() {}
 
     template <int receiverWindowSize, int seqNumBound>
-    void BasicReceiver<receiverWindowSize, seqNumBound>::sendAckToPeer(char ack_num)
+    void BasicReceiver<receiverWindowSize, seqNumBound>::sendAckToPeer(unsigned char ack_num)
     {
         if (m_enable_loss && random() < m_send_ack_loss) {
             pretty_log_con << ::std::format("Loss event occurs, ack frame {} was not sent", (int)ack_num);
@@ -51,7 +51,7 @@ namespace my
     }
 
     template <int receiverWindowSize, int seqNumBound>
-    UDPDataframe BasicReceiver<receiverWindowSize, seqNumBound>::recvUDPDataframeFromPeer()
+    UDPDataframe BasicReceiver<receiverWindowSize, seqNumBound>::recvUDPDataFromPeer()
     {
         UDPDataframe dataframe;
         Peer peer;

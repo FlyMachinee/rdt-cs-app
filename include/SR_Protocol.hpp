@@ -74,7 +74,7 @@ namespace my
             while (next_seq_num < base + N && next_seq_num <= block_count) {
                 pretty_log << ::std::format("Send data frame {}({}/{})", next_seq_num % M, next_seq_num, block_count);
 
-                this->sendUDPDataframeToPeer(reader, next_seq_num);
+                this->sendUDPDataToPeer(reader, next_seq_num);
                 m_spin_timer.timerSetTimeout(next_seq_num % M, this->m_timeout);
                 ++next_seq_num;
             }
@@ -101,7 +101,7 @@ namespace my
                     << ::std::format("Timeout for ack frame {}({}/{})", timeout_num, actual_timeout_num, block_count)
                     << ::std::format("Resend data frame {}({}/{})", timeout_num, actual_timeout_num, block_count);
 
-                this->sendUDPDataframeToPeer(reader, actual_timeout_num);
+                this->sendUDPDataToPeer(reader, actual_timeout_num);
                 m_spin_timer.timerSetTimeout(timeout_num, this->m_timeout);
             }
         }
@@ -123,7 +123,7 @@ namespace my
 
         // 阻塞接收数据帧
         while (!receive_end || base < target_block_cnt) {
-            UDPDataframe dataframe = this->recvUDPDataframeFromPeer();
+            UDPDataframe dataframe = this->recvUDPDataFromPeer();
 
             int seq_num = dataframe.getDataNum();
             int length;
@@ -149,9 +149,6 @@ namespace my
                         receive_end = true;
                         target_block_cnt = actual_forward_block_num;
                         pretty_log_con << "End frame";
-
-                        // 不考虑最后一个ack丢失的情况
-                        this->disableReceiverLoss();
                     } else {
                         if (m_spin_cache.submit(seq_num, ::std::move(dataframe))) {
                             int cnt = m_spin_cache.spin(writer);

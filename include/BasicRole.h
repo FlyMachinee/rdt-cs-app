@@ -45,7 +45,7 @@ namespace my
     protected:
         Host m_host;
         Peer m_peer;
-        int m_timeout = 2000;
+        int m_timeout = 1000;
 
     private:
         static std::random_device m_device;

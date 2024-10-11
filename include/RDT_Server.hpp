@@ -11,7 +11,7 @@
 
 namespace my
 {
-    // 要求：Transceiver有sendUDPDataframeToPeer、recvUDPDataframeFromPeer、sendAckToPeer、recvAckFromPeer
+    // 要求：Transceiver有sendUDPDataframeToPeer、recvUDPDataFromPeer、sendAckToPeer、recvAckFromPeer
     // 并且多继承自BasicRole
     template <class Transceiver>
     class RDT_Server : protected Transceiver
@@ -181,6 +181,8 @@ namespace my
         enableLoss();
         this->sendtoPeer(m_repo.string() + ::std::string(filename));
         disableLoss();
+        this->sendAckToPeer(255);
+        pretty_log << ::std::format("Send file \"{}\" successfully to {}", filename, this->m_peer.toString());
     }
 
     template <class Transceiver>
@@ -195,6 +197,27 @@ namespace my
         enableLoss();
         this->recvfromPeer(file_path.string());
         disableLoss();
+
+        // 等待客户端发送结束帧
+        // 避免服务器完成上传后，但服务器发送的ack丢失，导致客户端一直重发数据帧
+        // 因为recvfromPeer在接收数据完毕后就会返回
+        Peer peer;
+        while (true) {
+            UDPDataframe frame = recvUDPDataframeFrom(this->m_host, peer);
+            if (peer != this->m_peer) {
+                continue;
+            }
+            if (frame.isAck() && frame.getAckNum() == 255) {
+                pretty_log << ::std::format("Update file \"{}\" successfully from {}", filename, this->m_peer.toString());
+                return;
+            }
+            if (frame.isData()) {
+                this->sendAckToPeer(frame.getDataNum());
+                pretty_log << ::std::format("Receive data frame {}", frame.getDataNum())
+                           << "Duplicate frame, discard"
+                           << ::std::format("Send ack frame {}", frame.getDataNum());
+            }
+        }
     }
 
 } // namespace my

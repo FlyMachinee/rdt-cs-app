@@ -32,7 +32,7 @@ namespace my
         bool m_enable_loss = false;
 
         int recvAckFromPeer();
-        void sendUDPDataframeToPeer(UDPFileReader &reader, int index);
+        void sendUDPDataToPeer(UDPFileReader &reader, int index);
     };
 
     template <int senderWindowSize, int seqNumBound>
@@ -55,7 +55,7 @@ namespace my
         }
 
         Peer peer;
-        char ack_num;
+        unsigned char ack_num;
         try {
             ack_num = recvAckFrom(this->m_host, peer);
         } catch (const std::runtime_error &e) {
@@ -77,7 +77,7 @@ namespace my
     }
 
     template <int senderWindowSize, int seqNumBound>
-    inline void BasicSender<senderWindowSize, seqNumBound>::sendUDPDataframeToPeer(UDPFileReader &reader, int index)
+    inline void BasicSender<senderWindowSize, seqNumBound>::sendUDPDataToPeer(UDPFileReader &reader, int index)
     {
         if (m_enable_loss && this->random() < this->m_send_loss) {
             pretty_log_con << ::std::format("Loss event occurs, data frame {} was not sent", index);

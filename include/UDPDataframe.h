@@ -10,7 +10,7 @@ namespace my
     class UDPDataframe
     {
     public:
-        enum Type : char {
+        enum Type : unsigned char {
             NONE = 0,
             CMD = 1,
             DATA = 4,
@@ -28,21 +28,22 @@ namespace my
         ~UDPDataframe();
 
         void setType(Type type);
+        Type getType() const;
         bool isValid() const noexcept;
         bool isAck() const noexcept;
-        bool isAck(char ack_num) const noexcept;
+        bool isAck(unsigned char ack_num) const noexcept;
         bool isData() const noexcept;
         bool isCmd() const noexcept;
 
         const char *data(int &data_size) const;
         const char *cmd() const;
-        char getDataNum() const;
-        void setDataNum(char data_num);
-        char getAckNum() const;
-        void setAckNum(char ack_num);
+        unsigned char getDataNum() const;
+        void setDataNum(unsigned char data_num);
+        unsigned char getAckNum() const;
+        void setAckNum(unsigned char ack_num);
 
-        friend UDPDataframe UDPAck(char ack_num);
-        friend UDPDataframe UDPData(char data_num, const char *data, int data_size);
+        friend UDPDataframe UDPAck(unsigned char ack_num);
+        friend UDPDataframe UDPData(unsigned char data_num, const char *data, short data_size);
         friend UDPDataframe UDPCmd(::std::string_view cmd);
         friend UDPDataframe recvUDPDataframeFrom(const Host &host, Peer &peer_from);
         friend void sendUDPDataframeTo(const UDPDataframe &dataframe, const Host &host, const Peer &peer_to);
@@ -54,14 +55,14 @@ namespace my
         int m_size;
     };
 
-    UDPDataframe UDPAck(char ack_num);
-    UDPDataframe UDPData(char data_num, const char *data, int data_size);
+    UDPDataframe UDPAck(unsigned char ack_num);
+    UDPDataframe UDPData(unsigned char data_num, const char *data, short data_size);
     UDPDataframe UDPCmd(::std::string_view cmd);
 
     UDPDataframe recvUDPDataframeFrom(const Host &host, Peer &peer_from);
     void sendUDPDataframeTo(const UDPDataframe &dataframe, const Host &host, const Peer &peer_to);
-    char recvAckFrom(const Host &host, Peer &peer_from);
-    void sendAckTo(char ack_num, const Host &host, const Peer &peer_to);
+    unsigned char recvAckFrom(const Host &host, Peer &peer_from);
+    void sendAckTo(unsigned char ack_num, const Host &host, const Peer &peer_to);
     ::std::string recvCmdFrom(const Host &host, Peer &peer_from);
     void sendCmdTo(::std::string_view cmd, const Host &host, const Peer &peer_to);
 } // namespace my
