@@ -162,7 +162,7 @@ namespace my
 
             // 发送确认帧
             pretty_log_con << ::std::format("Send ack frame {}({})", (base + M) % M, base);
-            this->sendAckToPeer(base % M);
+            this->sendAckToPeer((base + M) % M);
         }
     }
 

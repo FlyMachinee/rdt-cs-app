@@ -532,9 +532,7 @@ namespace my
         ::std::cout << "No  Filename" << ::std::string(max_file_name_length - 8, ' ') << "  Size" << ::std::endl;
         for (int i = 0; i < file_list.size(); ++i) {
             pretty_out
-                << ::std::vformat(::std::format("{{:<4}}{{:<{}}}", max_file_name_length), ::std::make_format_args(i, file_list[i]))
-                << "  "
-                << file_size_list[i];
+                << ::std::vformat(::std::format("{{:<4}}{{:<{}}}", max_file_name_length), ::std::make_format_args(i, file_list[i])) + "  " + file_size_list[i];
         }
     }
 
