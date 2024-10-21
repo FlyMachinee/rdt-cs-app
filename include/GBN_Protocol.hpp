@@ -7,6 +7,11 @@
 
 namespace my
 {
+    /**
+     * @brief GBN协议的发送方
+     * @tparam senderWindowSize 发送窗口大小
+     * @tparam seqNumBound 序列号的上界
+     */
     template <int senderWindowSize, int seqNumBound>
         requires(senderWindowSize <= seqNumBound - 1 && senderWindowSize > 0)
     class GBN_Sender : public BasicSender<senderWindowSize, seqNumBound>
@@ -25,6 +30,10 @@ namespace my
         Timer m_timer;
     };
 
+    /**
+     * @brief GBN协议的接收方
+     * @tparam seqNumBound 序列号的上界
+     */
     template <int seqNumBound>
         requires(seqNumBound >= 2)
     class GBN_Receiver : public BasicReceiver<1, seqNumBound>
@@ -40,6 +49,12 @@ namespace my
         virtual void recvfromPeer(::std::string_view file_path) override;
     };
 
+    /**
+     * @brief GBN协议发送方与接收方的组合体
+     * @details 简单的多继承自GBN_Sender与GBN_Receiver。既能进行GBN协议的发送也能进行GBN协议的接收
+     * @tparam senderWindowSize 发送窗口大小
+     * @tparam seqNumBound 序列号的上界
+     */
     template <int senderWindowSize, int seqNumBound>
         requires(senderWindowSize <= seqNumBound - 1 && senderWindowSize > 0)
     class GBN_Transceiver : public GBN_Sender<senderWindowSize, seqNumBound>,
@@ -51,6 +66,10 @@ namespace my
         virtual ~GBN_Transceiver() = default;
     };
 
+    /**
+     * @brief 发送一个文件到对等方，使用GBN协议
+     * @param filename 文件名
+     */
     template <int senderWindowSize, int seqNumBound>
         requires(senderWindowSize <= seqNumBound - 1 && senderWindowSize > 0)
     void my::GBN_Sender<senderWindowSize, seqNumBound>::sendtoPeer(::std::string_view filename)
@@ -120,6 +139,10 @@ namespace my
         }
     }
 
+    /**
+     * @brief 接收对等方发送的文件，使用GBN协议
+     * @param file_path 保存文件的路径
+     */
     template <int seqNumBound>
         requires(seqNumBound >= 2)
     void my::GBN_Receiver<seqNumBound>::recvfromPeer(::std::string_view file_path)

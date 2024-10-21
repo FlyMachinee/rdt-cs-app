@@ -9,6 +9,9 @@ namespace my
 {
     class BasicRole;
 
+    /**
+     * @brief Peer类表示一个对等方，对sockaddr_in结构体的封装，语意上表示对方进程（对发送者来说就是接收者，反之亦然）
+     */
     class Peer
     {
     public:
@@ -32,6 +35,10 @@ namespace my
                    m_address.sin_port == peer.m_address.sin_port;
         }
 
+        /**
+         * @brief 获取对等方的字符串表示
+         * @return 对等方的字符串表示
+         */
         ::std::string toString() const
         {
             return ::std::format("{0}:{1}", getIP(), getPort());
@@ -41,6 +48,9 @@ namespace my
         sockaddr_in m_address;
     };
 
+    /**
+     * @brief Host类表示一个主机，对Peer类的扩展，增加了一个SOCKET成员，语意上表示本进程
+     */
     class Host : public Peer
     {
     public:
@@ -55,6 +65,9 @@ namespace my
         SOCKET getSocket() const noexcept { return m_socket; }
         void setSocket(SOCKET host_socket) noexcept { m_socket = host_socket; }
 
+        /**
+         * @brief 通过现有的SOCKET更新IP地址和端口号信息
+         */
         void updateAddr()
         {
             if (m_socket == INVALID_SOCKET) {

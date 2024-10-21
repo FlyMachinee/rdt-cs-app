@@ -6,6 +6,12 @@
 
 namespace my
 {
+    /**
+     * @brief BasicSender是一个抽象类，它是所有发送方的基类
+     * @tparam senderWindowSize 发送窗口大小
+     * @tparam seqNumBound 序列号的上界
+     * @details 封装了发送方用于发送数据分组、接收ACK的方法
+     */
     template <int senderWindowSize, int seqNumBound>
     class BasicSender : virtual public BasicRole
     {
@@ -38,6 +44,10 @@ namespace my
     template <int senderWindowSize, int seqNumBound>
     BasicSender<senderWindowSize, seqNumBound>::~BasicSender() {}
 
+    /**
+     * @brief 非阻塞地接收对等方的ACK
+     * @return ACK号，如果没有接收到则返回-1
+     */
     template <int senderWindowSize, int seqNumBound>
     int BasicSender<senderWindowSize, seqNumBound>::recvAckFromPeer()
     {
@@ -46,11 +56,13 @@ namespace my
         FD_SET(this->m_host.getSocket(), &readfds);
         TIMEVAL timeout = {0, 100000}; // 0.1s
 
+        // 通过select()函数实现非阻塞地接收ACK
         int sum = select(0, &readfds, nullptr, nullptr, &timeout);
         if (sum == SOCKET_ERROR) {
             pretty_out << ::std::format("throw from BasicSender::recvAckFromPeer(): select() failed, WSAGetLastError() = {0}", WSAGetLastError());
             throw std::runtime_error("select() failed");
         } else if (sum == 0) {
+            // 在0.1s内没有接收到ACK，返回-1
             return -1;
         }
 
@@ -65,7 +77,9 @@ namespace my
             return -1;
         }
 
+        // 确保接收到的ACK是从指定对等方发来的
         if (peer == this->m_peer) {
+            // 在发送方接收ACK时，进行丢包模拟
             if (m_enable_loss && this->random() < this->m_recv_ack_loss) {
                 pretty_log << ::std::format("Loss event occurs, ack frame {} was not received (already sent by peer)", (int)ack_num);
                 return -1;
@@ -76,9 +90,15 @@ namespace my
         }
     }
 
+    /**
+     * @brief 发送数据到对等方
+     * @param reader 用于读取数据的UDPFileReader对象
+     * @param index 数据块编号
+     */
     template <int senderWindowSize, int seqNumBound>
     inline void BasicSender<senderWindowSize, seqNumBound>::sendUDPDataToPeer(UDPFileReader &reader, int index)
     {
+        // 在发送方发送数据时，进行丢包模拟
         if (m_enable_loss && this->random() < this->m_send_loss) {
             pretty_log_con << ::std::format("Loss event occurs, data frame {} was not sent", index);
             return;

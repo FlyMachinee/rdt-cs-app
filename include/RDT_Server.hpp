@@ -11,8 +11,10 @@
 
 namespace my
 {
-    // 要求：Transceiver有sendUDPDataframeToPeer、recvUDPDataFromPeer、sendAckToPeer、recvAckFromPeer
-    // 并且多继承自BasicRole
+    /**
+     * @brief 可靠数据传输服务端
+     * @tparam Transceiver 使用的协议发送接收者
+     */
     template <class Transceiver>
     class RDT_Server : protected Transceiver
     {
@@ -37,12 +39,21 @@ namespace my
         void handle_upload(::std::string_view filename);
     };
 
+    /**
+     * @brief 停等协议服务端
+     */
     template <int seqNumBound>
     using StopWait_Server = RDT_Server<StopWait_Transceiver<seqNumBound>>;
 
+    /**
+     * @brief GBN协议服务端
+     */
     template <int senderWindowSize, int seqNumBound>
     using GBN_Server = RDT_Server<GBN_Transceiver<senderWindowSize, seqNumBound>>;
 
+    /**
+     * @brief SR协议服务端
+     */
     template <int windowSize, int seqNumBound>
     using SR_Server = RDT_Server<SR_Transceiver<windowSize, seqNumBound>>;
 
@@ -98,6 +109,9 @@ namespace my
         }
     }
 
+    /**
+     * @brief 运行服务端
+     */
     template <class Transceiver>
     void RDT_Server<Transceiver>::run()
     {
@@ -113,6 +127,10 @@ namespace my
         }
     }
 
+    /**
+     * @brief 从对等方接收命令
+     * @return 接收到的命令
+     */
     template <class Transceiver>
     inline ::std::string RDT_Server<Transceiver>::recvCmdFromPeer()
     {
@@ -120,6 +138,9 @@ namespace my
         return recvCmdFrom(this->m_host, this->m_peer);
     }
 
+    /**
+     * @brief 关闭丢包模拟
+     */
     template <class Transceiver>
     inline void RDT_Server<Transceiver>::disableLoss()
     {
@@ -127,6 +148,9 @@ namespace my
         this->disableSenderLoss();
     }
 
+    /**
+     * @brief 启用丢包模拟
+     */
     template <class Transceiver>
     inline void RDT_Server<Transceiver>::enableLoss()
     {
@@ -134,6 +158,11 @@ namespace my
         this->enableSenderLoss();
     }
 
+    /**
+     * @brief 执行对等方发送的命令
+     * @param cmd 命令字符串
+     * @return 执行结果，只会返回0
+     */
     template <class Transceiver>
     inline int RDT_Server<Transceiver>::exec_cmd(::std::string_view cmd)
     {
@@ -159,6 +188,9 @@ namespace my
         return 0;
     }
 
+    /**
+     * @brief 处理ls命令
+     */
     template <class Transceiver>
     inline void RDT_Server<Transceiver>::handle_ls()
     {
@@ -175,6 +207,10 @@ namespace my
         sendUDPDataframeTo(UDPData(0, buffer, 0), this->m_host, this->m_peer);
     }
 
+    /**
+     * @brief 处理download命令
+     * @param filename 文件名
+     */
     template <class Transceiver>
     inline void RDT_Server<Transceiver>::handle_download(::std::string_view filename)
     {
@@ -185,6 +221,10 @@ namespace my
         pretty_log << ::std::format("Send file \"{}\" successfully to {}", filename, this->m_peer.toString());
     }
 
+    /**
+     * @brief 处理upload命令
+     * @param filename 文件名
+     */
     template <class Transceiver>
     inline void RDT_Server<Transceiver>::handle_upload(::std::string_view filename)
     {

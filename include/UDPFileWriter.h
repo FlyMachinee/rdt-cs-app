@@ -8,6 +8,9 @@
 
 namespace my
 {
+    /**
+     * @brief 用于将UDP数据分组写入文件的类
+     */
     class UDPFileWriter
     {
     public:

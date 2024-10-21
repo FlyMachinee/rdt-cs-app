@@ -3,6 +3,10 @@
 
 #include <format>
 
+/**
+ * @brief 构造一个从filename对应文件中读取UDP数据分组的UDPFileReader对象
+ * @param filename 文件名
+ */
 ::my::UDPFileReader::UDPFileReader(::std::string_view filename)
 {
     m_ifs.open(filename.data(), ::std::ios::binary);
@@ -17,21 +21,36 @@
     m_ifs.seekg(0, ::std::ios::beg);
 }
 
+/**
+ * @brief 析构函数
+ */
 ::my::UDPFileReader::~UDPFileReader()
 {
     close();
 }
 
+/**
+ * @brief 关闭文件
+ */
 void ::my::UDPFileReader::close()
 {
     m_ifs.close();
 }
 
+/**
+ * @brief 获取能够从文件中读取的UDP数据分组数量
+ * @return 数据分组数量
+ */
 int ::my::UDPFileReader::getBlockCount()
 {
     return m_block_count;
 }
 
+/**
+ * @brief 获取文件中的第block_num个UDP数据分组
+ * @param block_num 第几个数据分组
+ * @return UDP数据分组
+ */
 ::my::UDPDataframe my::UDPFileReader::getDataframe(int block_num)
 {
     if (block_num < 0 || block_num > m_block_count) {

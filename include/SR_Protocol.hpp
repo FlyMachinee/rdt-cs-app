@@ -7,6 +7,11 @@
 
 namespace my
 {
+    /**
+     * @brief SR协议的发送方
+     * @tparam senderWindowSize 发送窗口大小
+     * @tparam seqNumBound 序列号的上界
+     */
     template <int senderWindowSize, int seqNumBound>
         requires(senderWindowSize <= seqNumBound / 2 && senderWindowSize > 0)
     class SR_Sender : public BasicSender<senderWindowSize, seqNumBound>
@@ -25,6 +30,11 @@ namespace my
         SpinWindowWithTimer<senderWindowSize, seqNumBound> m_spin_timer;
     };
 
+    /**
+     * @brief SR协议的接收方
+     * @tparam receiverWindowSize 接收窗口大小
+     * @tparam seqNumBound 序列号的上界
+     */
     template <int receiverWindowSize, int seqNumBound>
         requires(receiverWindowSize <= seqNumBound / 2 && receiverWindowSize > 0)
     class SR_Receiver : public BasicReceiver<receiverWindowSize, seqNumBound>
@@ -43,6 +53,11 @@ namespace my
         SpinWindowWithCache<receiverWindowSize, seqNumBound, UDPDataframe> m_spin_cache;
     };
 
+    /**
+     * @brief SR协议发送方与接收方的组合体
+     * @tparam windowSize 双方窗口大小
+     * @tparam seqNumBound 序列号的上界
+     */
     template <int windowSize, int seqNumBound>
         requires(windowSize <= seqNumBound / 2)
     class SR_Transceiver : public SR_Sender<windowSize, seqNumBound>,
@@ -54,6 +69,10 @@ namespace my
         virtual ~SR_Transceiver() = default;
     };
 
+    /**
+     * @brief 向对等方发送文件，使用SR协议
+     * @param file_path 文件路径
+     */
     template <int senderWindowSize, int seqNumBound>
         requires(senderWindowSize <= seqNumBound / 2 && senderWindowSize > 0)
     void my::SR_Sender<senderWindowSize, seqNumBound>::sendtoPeer(::std::string_view file_path)
@@ -107,6 +126,10 @@ namespace my
         }
     }
 
+    /**
+     * @brief 接收对等方发送的文件，使用SR协议
+     * @param file_path 保存文件的路径
+     */
     template <int receiverWindowSize, int seqNumBound>
         requires(receiverWindowSize <= seqNumBound / 2 && receiverWindowSize > 0)
     void SR_Receiver<receiverWindowSize, seqNumBound>::recvfromPeer(::std::string_view file_path)

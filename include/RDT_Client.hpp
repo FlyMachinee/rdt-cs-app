@@ -13,8 +13,10 @@
 
 namespace my
 {
-    // 要求：Transceiver有sendUDPDataframeToPeer、recvUDPDataFromPeer、sendAckToPeer、recvAckFromPeer
-    // 并且多继承自BasicRole
+    /**
+     * @brief 可靠数据传输客户端
+     * @tparam Transceiver 使用的协议发送接收者
+     */
     template <class Transceiver>
     class RDT_Client : protected Transceiver
     {
@@ -45,12 +47,21 @@ namespace my
         void show_file_list(const ::std::vector<::std::string> &file_list, const ::std::vector<::std::string> &file_size_list);
     };
 
+    /**
+     * @brief 停等协议客户端
+     */
     template <int seqNumBound>
     using StopWait_Client = RDT_Client<StopWait_Transceiver<seqNumBound>>;
 
+    /**
+     * @brief GBN协议客户端
+     */
     template <int senderWindowSize, int seqNumBound>
     using GBN_Client = RDT_Client<GBN_Transceiver<senderWindowSize, seqNumBound>>;
 
+    /**
+     * @brief SR协议客户端
+     */
     template <int windowSize, int seqNumBound>
     using SR_Client = RDT_Client<SR_Transceiver<windowSize, seqNumBound>>;
 
@@ -108,6 +119,9 @@ namespace my
         }
     }
 
+    /**
+     * @brief 运行客户端
+     */
     template <class Transceiver>
     void RDT_Client<Transceiver>::run()
     {
@@ -123,12 +137,19 @@ namespace my
         }
     }
 
+    /**
+     * @brief 向对等方发送命令
+     * @param cmd 命令
+     */
     template <class Transceiver>
     void RDT_Client<Transceiver>::sendCmdToPeer(::std::string_view cmd)
     {
         sendCmdTo(cmd, this->m_host, this->m_peer);
     }
 
+    /**
+     * @brief 禁用丢包
+     */
     template <class Transceiver>
     void RDT_Client<Transceiver>::disableLoss()
     {
@@ -136,6 +157,9 @@ namespace my
         this->disableSenderLoss();
     }
 
+    /**
+     * @brief 启用丢包
+     */
     template <class Transceiver>
     void RDT_Client<Transceiver>::enableLoss()
     {
@@ -143,6 +167,9 @@ namespace my
         this->enableSenderLoss();
     }
 
+    /**
+     * @brief 处理用户输入
+     */
     template <class Transceiver>
     int RDT_Client<Transceiver>::handle_user_input()
     {
@@ -152,6 +179,9 @@ namespace my
         return this->exec_cmd(cmd);
     }
 
+    /**
+     * @brief 执行用户输入命令
+     */
     template <class Transceiver>
     int RDT_Client<Transceiver>::exec_cmd(::std::string_view cmd)
     {
@@ -161,6 +191,8 @@ namespace my
 
         // 这里忽略了路径中有空格的情况
         // 处理起来比较麻烦，暂时不考虑 (正确方式为在输入路径时加引号)
+
+        // 一大串用于解析用户命令的代码
 
         if (token == "upload" || token == "download" || token == "lss") {
             while (iss >> token) {
@@ -294,6 +326,9 @@ namespace my
         return 0;
     }
 
+    /**
+     * @brief 显示帮助信息
+     */
     template <class Transceiver>
     void RDT_Client<Transceiver>::help()
     {
@@ -315,6 +350,9 @@ namespace my
             << "\033[0m\033[1;32mexit/quit\033[0m - Exit client";
     }
 
+    /**
+     * @brief 处理ls命令
+     */
     template <class Transceiver>
     inline bool RDT_Client<Transceiver>::handle_ls(::std::vector<::std::string> &file_list, ::std::vector<::std::string> &file_size_list)
     {
@@ -334,6 +372,9 @@ namespace my
         return true;
     }
 
+    /**
+     * @brief 处理lss命令
+     */
     template <class Transceiver>
     inline bool RDT_Client<Transceiver>::handle_lss(::std::vector<::std::string> &file_list, ::std::vector<::std::string> &file_size_list)
     {
@@ -374,6 +415,9 @@ namespace my
         return true;
     }
 
+    /**
+     * @brief 处理upload命令
+     */
     template <class Transceiver>
     void RDT_Client<Transceiver>::handle_upload()
     {
@@ -421,6 +465,9 @@ namespace my
         pretty_log << ::std::format("Upload file \"{}\" successfully to {}", file_list[file_num], this->m_peer.toString());
     }
 
+    /**
+     * @brief 处理download命令
+     */
     template <class Transceiver>
     void RDT_Client<Transceiver>::handle_download()
     {

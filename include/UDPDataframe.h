@@ -7,9 +7,25 @@ namespace my
 {
     class UDPFileReader;
 
+    /**
+     * @brief 用于表示UDP数据帧的类
+     *
+     * @details
+     * 数据分组
+     * | DATA(4, 1B) | DATA_NUM(1B) | DATA_SIZE(2B) | DATA(0B~1024B) |
+     *
+     * 确认分组
+     * | ACK(20, 1B) | ACK_NUM(1B) |
+     *
+     * 命令分组
+     * | CMD(1, 1B) | CMD(0B~1024B) |
+     */
     class UDPDataframe
     {
     public:
+        /**
+         * @brief 枚举类型，表示UDP数据帧的类型
+         */
         enum Type : unsigned char {
             NONE = 0,
             CMD = 1,

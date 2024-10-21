@@ -10,6 +10,9 @@ namespace my
 {
     // class UDPFileReaderIterator;
 
+    /**
+     * @brief 用于从文件中读取UDP数据帧的类
+     */
     class UDPFileReader
     {
     public:
